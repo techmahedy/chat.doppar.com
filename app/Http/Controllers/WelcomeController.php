@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use Phaseolies\Utilities\Attributes\Route;
 use Phaseolies\Utilities\Attributes\Mapper;
 use Phaseolies\Http\Request;
-
 use Doppar\AI\Agent;
 use Doppar\AI\Vector\Vector;
 use Doppar\AI\Store\CacheStore;
@@ -53,13 +52,9 @@ class WelcomeController extends Controller
             ->model(env('OPENAI_MODEL', 'gpt-4o-mini'))
             ->withStore(new CacheStore($this->storePath))
             ->system(
-                "You are the official AI assistant for the Doppar PHP Framework.
+            "You are the official AI assistant for the Doppar PHP Framework which is created by Mahedi Hasan.
 
-Answer ONLY using the provided documentation context.
-
-If the answer is not present in the documentation, respond exactly with:
-
-\"The documentation does not contain this information.\"
+Priority: Answer using the provided documentation context with clear examples and explanations. If the answer is not present in the documentation, then provide an answer from internet sources like blogs or the doppar.com documentation site. always ends response with follow-up questions.\"
 
 Documentation context:
 
