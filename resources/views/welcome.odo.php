@@ -123,14 +123,18 @@
             min-width: var(--sb-closed);
         }
 
+        #sidebar.collapsed {
+            width: var(--sb-closed);
+            min-width: var(--sb-closed);
+        }
+
         /* ── Sidebar head ─────────────────────────────────────────────────────────── */
         .sb-head {
-            height: var(--topbar);
+            height: 50px;
             display: flex;
             align-items: center;
             padding: 0 8px 0 12px;
             gap: 8px;
-            border-bottom: 1px solid var(--bd);
             flex-shrink: 0;
         }
 
@@ -161,7 +165,8 @@
             color: var(--ink);
             white-space: nowrap;
             flex: 1;
-            transition: opacity .18s;
+            overflow: hidden;
+            transition: opacity .18s, visibility .18s;
         }
 
         .sb-wordmark em {
@@ -171,9 +176,12 @@
 
         #sidebar.collapsed .sb-wordmark {
             opacity: 0;
-            pointer-events: none
+            visibility: hidden;
+            flex: 0;
+            width: 0
         }
 
+        /* Toggle button always occupies its own fixed slot so it's never clipped */
         .sb-toggle {
             width: 28px;
             height: 28px;
@@ -187,12 +195,26 @@
             font-size: 14px;
             transition: background .15s, color .15s;
             flex-shrink: 0;
+            /* when collapsed, logo+gap+toggle = 12+30+8+28+8 = 86 → fits within 54px?
+     No — so when collapsed we hide the logo too and just show toggle centred */
         }
 
         .sb-toggle:hover {
             background: var(--bg);
             color: var(--ink)
         }
+
+        /* Collapsed: hide logo, center toggle */
+        #sidebar.collapsed .sb-head {
+            justify-content: center;
+            padding: 0
+        }
+
+        #sidebar.collapsed .sb-logo {
+            display: none
+        }
+
+        /* .topbar removed */
 
         /* ── New chat button ──────────────────────────────────────────────────────── */
         .sb-new {
@@ -459,42 +481,30 @@
             width: auto
         }
 
-        /* ══════════════════════════════════════════════════════════════════════════════
-   TOP BAR
-══════════════════════════════════════════════════════════════════════════════ */
-        #topbar {
-            height: var(--topbar);
-            flex-shrink: 0;
+        /* .topbar / .mainbar removed */
+
+        /* Status row in sidebar footer */
+        .sb-status {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 0 18px;
-            background: var(--card);
-            border-bottom: 1px solid var(--bd);
-            backdrop-filter: blur(8px);
-        }
-
-        .topbar-title {
-            flex: 1;
-            font-size: .875rem;
-            font-weight: 600;
-            color: var(--ink);
+            gap: 9px;
+            padding: 7px 8px;
+            border-radius: var(--r);
+            font-size: .78rem;
+            color: var(--muted);
             white-space: nowrap;
             overflow: hidden;
-            text-overflow: ellipsis;
         }
 
-        .topbar-title em {
-            font-style: italic;
-            color: var(--muted);
-            font-weight: 400
+        #sidebar.collapsed .sb-status {
+            justify-content: center
         }
 
-        .topbar-right {
-            display: flex;
-            align-items: center;
-            gap: 6px
+        .status-badge {
+            display: none
         }
+
+        /* kept for JS compat but hidden */
 
         .status-badge {
             display: inline-flex;
@@ -780,7 +790,6 @@
         .msg-row {
             display: flex;
             align-items: flex-end;
-            gap: 10px;
             padding: 2px 0
         }
 
@@ -788,38 +797,16 @@
             flex-direction: row-reverse
         }
 
-        .msg-av {
-            width: 28px;
-            height: 28px;
-            border-radius: 9px;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: .02em;
-        }
-
-        .av-agent {
-            background: var(--accent-l);
-            color: var(--accent)
-        }
-
-        .av-user {
-            background: var(--ink);
-            color: #fff
-        }
-
         .msg-col {
             display: flex;
             flex-direction: column;
             gap: 3px;
-            max-width: 76%
+            max-width: 80%
         }
 
         .user-row .msg-col {
-            align-items: flex-end
+            align-items: flex-end;
+            margin-left: auto
         }
 
         /* ── Bubble styles ──────────────────────────────────────────────────────── */
@@ -870,23 +857,85 @@
             text-align: right
         }
 
-        /* Code inside bubbles */
+        /* Code inside bubbles — Claude-style blocks */
         .bub pre {
-            background: #181c28;
-            color: #c8d3ed;
-            padding: 12px 14px;
-            border-radius: 8px;
-            overflow-x: auto;
-            font-family: 'DM Mono', monospace;
-            font-size: .76rem;
-            line-height: 1.6;
-            margin: 8px 0;
-            white-space: pre
+            margin: 10px 0;
+            border-radius: 10px;
+            overflow: hidden;
+            background: none;
+            padding: 0;
+            font-size: inherit
         }
 
+        .code-block {
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #2e3349;
+            background: #1a1d2e
+        }
+
+        .code-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #1e2235;
+            padding: 8px 14px;
+            border-bottom: 1px solid #2e3349;
+        }
+
+        .code-lang {
+            font-size: .7rem;
+            font-weight: 500;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: #7b8ab8;
+            font-family: 'DM Mono', monospace;
+        }
+
+        .code-copy {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: .7rem;
+            color: #7b8ab8;
+            background: none;
+            border: 1px solid #2e3349;
+            border-radius: 5px;
+            padding: 3px 9px;
+            cursor: pointer;
+            transition: background .15s, color .15s, border-color .15s;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .code-copy:hover {
+            background: #2a2f47;
+            color: #a8b4d8;
+            border-color: #3d4560
+        }
+
+        .code-copy.copied {
+            color: #4ade80;
+            border-color: #166534
+        }
+
+        .code-copy i {
+            font-size: 11px
+        }
+
+        .code-body {
+            padding: 14px 16px;
+            overflow-x: auto;
+            font-family: 'DM Mono', monospace;
+            font-size: .78rem;
+            line-height: 1.65;
+            color: #c8d3ed;
+            white-space: pre;
+        }
+
+        /* Inline code */
         .bub code {
             font-family: 'DM Mono', monospace;
-            font-size: .77rem;
+            font-size: .78rem;
             background: rgba(26, 110, 245, .08);
             color: var(--accent);
             padding: 1px 5px;
@@ -1109,10 +1158,9 @@
         <aside id="sidebar">
 
             <div class="sb-head">
-                <div class="sb-logo">D</div>
                 <span class="sb-wordmark">doppar <em>ai</em></span>
-                <button class="sb-toggle" id="sbToggle" onclick="toggleSB()" title="Collapse sidebar">
-                    <i class="bi bi-layout-sidebar-reverse"></i>
+                <button class="sb-toggle" id="sbToggle" onclick="toggleSB()" title="Toggle sidebar">
+                    <i class="bi bi-layout-sidebar-reverse" id="sbToggleIcon"></i>
                 </button>
             </div>
 
@@ -1125,9 +1173,14 @@
             <div class="sb-list" id="sbList"></div>
 
             <div class="sb-foot">
-                <button class="sb-foot-btn">
-                    <i class="bi bi-person-circle"></i>
-                    <span class="sb-foot-lbl">Profile</span>
+                <!-- Status indicator -->
+                <div class="sb-status">
+                    <span class="s-dot" id="sDot"></span>
+                    <span class="sb-foot-lbl" id="sTxt">Online</span>
+                </div>
+                <button class="sb-foot-btn danger" onclick="clearCurrentChat()" title="Clear current chat">
+                    <i class="bi bi-eraser"></i>
+                    <span class="sb-foot-lbl">Clear chat</span>
                 </button>
                 <button class="sb-foot-btn">
                     <i class="bi bi-gear"></i>
@@ -1146,26 +1199,11 @@
 ════════════════════════════════════════════════════════════ -->
         <div id="main">
 
-            <!-- Top bar -->
-            <div id="topbar">
-                <span class="topbar-title" id="topbarTitle">doppar <em>ai</em></span>
-                <div class="topbar-right">
-                    <div class="status-badge" id="statusBadge">
-                        <span class="s-dot" id="sDot"></span>
-                        <span id="sTxt">Online</span>
-                    </div>
-                    <button class="icon-btn danger" onclick="clearCurrentChat()" title="Clear chat">
-                        <i class="bi bi-trash3"></i>
-                    </button>
-                </div>
-            </div>
-
             <!-- ════ HOME VIEW ════ -->
             <div id="homeView">
                 <div class="home-inner">
 
                     <div class="home-brand">
-                        <h1>Ask anything about<br><em>Doppar</em></h1>
                         <p>Framework assistant · powered by doppar/ai · OpenAI GPT</p>
                     </div>
 
@@ -1249,14 +1287,13 @@
         }
 
         // ─── Sidebar collapse ─────────────────────────────────────────────────────────
-        let sbOpen = true;
-
+        // State lives in the DOM — never drifts out of sync with a JS variable
         function toggleSB() {
-            sbOpen = !sbOpen;
-            $('sidebar').classList.toggle('collapsed', !sbOpen);
-            $('sbToggle').querySelector('i').className = sbOpen ?
-                'bi bi-layout-sidebar-reverse' :
-                'bi bi-layout-sidebar';
+            const isNowCollapsed = $('sidebar').classList.toggle('collapsed');
+            $('sbToggleIcon').className = isNowCollapsed ?
+                'bi bi-layout-sidebar' // collapsed → show "open" icon
+                :
+                'bi bi-layout-sidebar-reverse'; // expanded  → show "close" icon
         }
 
         // ─── Chat history (localStorage) ─────────────────────────────────────────────
@@ -1399,11 +1436,8 @@
             toast('success', 'All history cleared');
         }
 
-        function setTopTitle(title) {
-            $('topbarTitle').innerHTML = title ?
-                esc(title) :
-                'doppar <em style="font-style:italic;color:var(--muted);font-weight:400">ai</em>';
-        }
+        function setTopTitle(_title) {
+            /* no topbar — title lives in sidebar active item */ }
 
         // ─── Suggestion data ──────────────────────────────────────────────────────────
         const SUGG = {
@@ -1506,17 +1540,91 @@
                 .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
+        // Map common language aliases → display labels
+        const LANG_LABELS = {
+            php: 'PHP',
+            js: 'JavaScript',
+            javascript: 'JavaScript',
+            ts: 'TypeScript',
+            typescript: 'TypeScript',
+            html: 'HTML',
+            css: 'CSS',
+            json: 'JSON',
+            sql: 'SQL',
+            bash: 'Bash',
+            sh: 'Shell',
+            python: 'Python',
+            py: 'Python',
+            ruby: 'Ruby',
+            java: 'Java',
+            go: 'Go',
+            rust: 'Rust',
+            cpp: 'C++',
+            c: 'C',
+            xml: 'XML',
+            yaml: 'YAML',
+            yml: 'YAML',
+            md: 'Markdown',
+            plaintext: 'Plain Text',
+            text: 'Plain Text',
+            '': (l => l || 'Code')
+        };
+
+        let _codeBlockId = 0;
+
         function render(raw) {
             return raw.split(/(```[\s\S]*?```)/g).map((seg, i) => {
                 if (i % 2 === 1) {
-                    const code = seg.replace(/^```\w*\n?/, '').replace(/\n?```$/, '');
-                    return `<pre><code>${esc(code)}</code></pre>`;
+                    // Extract language from fence opener
+                    const match = seg.match(/^```(\w*)\n?([\s\S]*?)```$/);
+                    const lang = (match?.[1] || '').toLowerCase();
+                    const code = match?.[2] ?? seg.replace(/^```\w*\n?/, '').replace(/\n?```$/, '');
+                    const label = LANG_LABELS[lang] || (lang ? lang.charAt(0).toUpperCase() + lang.slice(1) : 'Code');
+                    const id = 'cb' + (++_codeBlockId);
+                    return `<div class="code-block">
+        <div class="code-header">
+          <span class="code-lang">${esc(label)}</span>
+          <button class="code-copy" onclick="copyCode('${id}',this)" title="Copy code">
+            <i class="bi bi-clipboard"></i> Copy
+          </button>
+        </div>
+        <div class="code-body" id="${id}">${esc(code)}</div>
+      </div>`;
                 }
+                // Plain text segment
                 return esc(seg)
                     .replace(/`([^`\n]+?)`/g, '<code>$1</code>')
                     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
                     .replace(/\n/g, '<br>');
             }).join('');
+        }
+
+        // Copy handler
+        function copyCode(id, btn) {
+            const el = $(id);
+            if (!el) return;
+            navigator.clipboard.writeText(el.textContent).then(() => {
+                btn.innerHTML = '<i class="bi bi-check-lg"></i> Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.innerHTML = '<i class="bi bi-clipboard"></i> Copy';
+                    btn.classList.remove('copied');
+                }, 2000);
+            }).catch(() => {
+                // Fallback for non-HTTPS
+                const ta = document.createElement('textarea');
+                ta.value = el.textContent;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                btn.innerHTML = '<i class="bi bi-check-lg"></i> Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.innerHTML = '<i class="bi bi-clipboard"></i> Copy';
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
         }
 
         // ─── Streaming state ──────────────────────────────────────────────────────────
@@ -1528,7 +1636,7 @@
             $('homeSendBtn').disabled = on;
             $('sDot').className = on ? 's-dot streaming' : 's-dot';
             $('sTxt').textContent = on ? 'Typing…' : 'Online';
-            $('sTxt').style.color = on ? 'var(--accent)' : 'var(--muted)';
+            $('sTxt').style.color = on ? 'var(--accent)' : '';
         }
 
         // ─── Send ─────────────────────────────────────────────────────────────────────
@@ -1739,10 +1847,6 @@
             const row = document.createElement('div');
             row.className = 'msg-row fade-in ' + (role === 'user' ? 'user-row' : '');
 
-            const av = document.createElement('div');
-            av.className = 'msg-av ' + (role === 'user' ? 'av-user' : 'av-agent');
-            av.textContent = role === 'user' ? 'ME' : 'D';
-
             const col = document.createElement('div');
             col.className = 'msg-col';
 
@@ -1756,7 +1860,6 @@
 
             col.appendChild(bub);
             col.appendChild(t);
-            row.appendChild(av);
             row.appendChild(col);
             inner.appendChild(row);
             scrollEnd();
@@ -1768,10 +1871,6 @@
             const row = document.createElement('div');
             row.className = 'msg-row fade-in';
 
-            const av = document.createElement('div');
-            av.className = 'msg-av av-agent';
-            av.textContent = 'D';
-
             const col = document.createElement('div');
             col.className = 'msg-col';
 
@@ -1779,7 +1878,6 @@
             bub.className = 'bub bub-agent';
 
             col.appendChild(bub);
-            row.appendChild(av);
             row.appendChild(col);
             inner.appendChild(row);
             scrollEnd();
@@ -1794,7 +1892,6 @@
             const row = document.createElement('div');
             row.className = 'msg-row fade-in';
             row.innerHTML = `
-    <div class="msg-av av-agent">D</div>
     <div class="bub bub-agent" style="padding:13px 16px;display:flex;gap:5px;align-items:center;">
       <span class="td"></span><span class="td"></span><span class="td"></span>
     </div>`;
