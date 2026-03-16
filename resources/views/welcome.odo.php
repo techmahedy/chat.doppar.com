@@ -10,6 +10,8 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <!-- Highlight.js — JS only, no theme CSS (we apply our own token colors) -->
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/highlight.min.js"></script>
     <style>
         /* ══ TOKENS ══════════════════════════════════════════════════════════════════ */
         :root {
@@ -857,7 +859,7 @@
             text-align: right
         }
 
-        /* Code inside bubbles — Claude-style blocks */
+        /* ── Claude-style code blocks ─────────────────────────────────────────────── */
         .bub pre {
             margin: 10px 0;
             border-radius: 10px;
@@ -870,25 +872,26 @@
         .code-block {
             border-radius: 10px;
             overflow: hidden;
-            border: 1px solid #2e3349;
-            background: #1a1d2e
+            border: 1px solid #3a3f4b;
+            background: #1e2030;
+            margin: 2px 0;
         }
 
         .code-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            background: #1e2235;
+            background: #161827;
             padding: 8px 14px;
-            border-bottom: 1px solid #2e3349;
+            border-bottom: 1px solid #3a3f4b;
         }
 
         .code-lang {
-            font-size: .7rem;
-            font-weight: 500;
-            letter-spacing: .06em;
+            font-size: .68rem;
+            font-weight: 600;
+            letter-spacing: .07em;
             text-transform: uppercase;
-            color: #7b8ab8;
+            color: #636d83;
             font-family: 'DM Mono', monospace;
         }
 
@@ -897,49 +900,220 @@
             align-items: center;
             gap: 5px;
             font-size: .7rem;
-            color: #7b8ab8;
+            color: #636d83;
             background: none;
-            border: 1px solid #2e3349;
+            border: 1px solid #3a3f4b;
             border-radius: 5px;
-            padding: 3px 9px;
+            padding: 3px 10px;
             cursor: pointer;
             transition: background .15s, color .15s, border-color .15s;
             font-family: 'DM Sans', sans-serif;
+            letter-spacing: .01em;
         }
 
         .code-copy:hover {
-            background: #2a2f47;
-            color: #a8b4d8;
-            border-color: #3d4560
+            background: #252840;
+            color: #a6b0cf;
+            border-color: #565f89
         }
 
         .code-copy.copied {
-            color: #4ade80;
-            border-color: #166534
+            color: #9ece6a;
+            border-color: #9ece6a
         }
 
         .code-copy i {
-            font-size: 11px
+            font-size: 10px
         }
 
         .code-body {
-            padding: 14px 16px;
             overflow-x: auto;
+            background: #1e2030;
+        }
+
+        /* The actual <pre><code> produced by hljs */
+        .code-body pre {
+            margin: 0;
+            padding: 16px 18px;
+            background: #1e2030 !important;
+            border-radius: 0;
             font-family: 'DM Mono', monospace;
-            font-size: .78rem;
-            line-height: 1.65;
-            color: #c8d3ed;
+            font-size: .785rem;
+            line-height: 1.7;
             white-space: pre;
         }
 
-        /* Inline code */
+        .code-body pre code.hljs {
+            padding: 0;
+            background: transparent !important;
+            font-family: 'DM Mono', monospace;
+            font-size: .785rem;
+            line-height: 1.7;
+            display: block;
+        }
+
+        /* Plain mode (during streaming) */
+        .code-body pre.plain {
+            color: #a9b1d6;
+            white-space: pre;
+        }
+
+        /* ── Highlight.js token colors — Tokyo Night palette ───────────────────────
+   High contrast on #1e2030 background                                       */
+        .hljs {
+            color: #a9b1d6;
+        }
+
+        /* Keywords: if, return, class, function, use, namespace … */
+        .hljs-keyword {
+            color: #bb9af7;
+            font-style: normal;
+        }
+
+        .hljs-built_in {
+            color: #7dcfff;
+        }
+
+        .hljs-type {
+            color: #2ac3de;
+        }
+
+        /* Strings */
+        .hljs-string {
+            color: #9ece6a;
+        }
+
+        .hljs-template-string {
+            color: #9ece6a;
+        }
+
+        .hljs-regexp {
+            color: #ff9e64;
+        }
+
+        /* Numbers, booleans, null */
+        .hljs-number {
+            color: #ff9e64;
+        }
+
+        .hljs-literal {
+            color: #ff9e64;
+        }
+
+        /* Comments */
+        .hljs-comment {
+            color: #565f89;
+            font-style: italic;
+        }
+
+        .hljs-doctag {
+            color: #7dcfff;
+        }
+
+        /* Functions & methods */
+        .hljs-title {
+            color: #7aa2f7;
+        }
+
+        .hljs-title.class_ {
+            color: #2ac3de;
+        }
+
+        .hljs-title.function_ {
+            color: #7aa2f7;
+        }
+
+        /* Variables, params, properties */
+        .hljs-variable {
+            color: #a9b1d6;
+        }
+
+        .hljs-variable.language_ {
+            color: #bb9af7;
+        }
+
+        .hljs-params {
+            color: #e0af68;
+        }
+
+        .hljs-property {
+            color: #73daca;
+        }
+
+        .hljs-attr {
+            color: #73daca;
+        }
+
+        .hljs-attribute {
+            color: #9ece6a;
+        }
+
+        /* Punctuation & operators */
+        .hljs-punctuation {
+            color: #89ddff;
+        }
+
+        .hljs-operator {
+            color: #89ddff;
+        }
+
+        .hljs-symbol {
+            color: #89ddff;
+        }
+
+        /* Tags (HTML/XML) */
+        .hljs-tag {
+            color: #f7768e;
+        }
+
+        .hljs-name {
+            color: #f7768e;
+        }
+
+        .hljs-selector-tag {
+            color: #f7768e;
+        }
+
+        .hljs-selector-id {
+            color: #e0af68;
+        }
+
+        .hljs-selector-class {
+            color: #9ece6a;
+        }
+
+        /* Meta, imports, namespaces */
+        .hljs-meta {
+            color: #7dcfff;
+        }
+
+        .hljs-meta .hljs-string {
+            color: #9ece6a;
+        }
+
+        .hljs-namespace {
+            color: #2ac3de;
+        }
+
+        /* Diff */
+        .hljs-addition {
+            color: #9ece6a;
+            background: rgba(158, 206, 106, .08);
+        }
+
+        .hljs-deletion {
+            color: #f7768e;
+            background: rgba(247, 118, 142, .08);
+        }
+
+        /* Inline code inside bubbles */
         .bub code {
             font-family: 'DM Mono', monospace;
             font-size: .78rem;
-            background: rgba(26, 110, 245, .08);
-            color: var(--accent);
-            padding: 1px 5px;
-            border-radius: 4px
+            background: rgba(26, 110, 245, .09);
+            color: #7aa2f7;
+            padding: 2px 6px;
+            border-radius: 4px;
         }
 
         .bub-user code {
@@ -1333,7 +1507,7 @@
         function renderSB() {
             const list = $('sbList');
             if (!chatHistory.length) {
-                list.innerHTML = `<div class="sb-empty"><i class="bi bi-chat-square-dots"></i>No conversations yet</div>`;
+                list.innerHTML = `<div class="sb-empty"><i class="bi bi-chat-square-dots"></i>No chat yet</div>`;
                 return;
             }
 
@@ -1540,58 +1714,101 @@
                 .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
-        // Map common language aliases → display labels
+        // Map language aliases → hljs language identifiers
+        const LANG_MAP = {
+            php: 'php',
+            js: 'javascript',
+            javascript: 'javascript',
+            ts: 'typescript',
+            typescript: 'typescript',
+            html: 'xml',
+            css: 'css',
+            json: 'json',
+            sql: 'sql',
+            bash: 'bash',
+            sh: 'bash',
+            shell: 'bash',
+            python: 'python',
+            py: 'python',
+            ruby: 'ruby',
+            java: 'java',
+            go: 'go',
+            rust: 'rust',
+            cpp: 'cpp',
+            c: 'c',
+            xml: 'xml',
+            yaml: 'yaml',
+            yml: 'yaml',
+            md: 'markdown',
+            plaintext: 'plaintext',
+            text: 'plaintext',
+        };
         const LANG_LABELS = {
             php: 'PHP',
-            js: 'JavaScript',
             javascript: 'JavaScript',
-            ts: 'TypeScript',
             typescript: 'TypeScript',
-            html: 'HTML',
+            xml: 'HTML/XML',
             css: 'CSS',
             json: 'JSON',
             sql: 'SQL',
-            bash: 'Bash',
-            sh: 'Shell',
+            bash: 'Shell',
             python: 'Python',
-            py: 'Python',
             ruby: 'Ruby',
             java: 'Java',
             go: 'Go',
             rust: 'Rust',
             cpp: 'C++',
             c: 'C',
-            xml: 'XML',
             yaml: 'YAML',
-            yml: 'YAML',
-            md: 'Markdown',
+            markdown: 'Markdown',
             plaintext: 'Plain Text',
-            text: 'Plain Text',
-            '': (l => l || 'Code')
         };
 
         let _codeBlockId = 0;
 
-        function render(raw) {
+        // highlight=true  → use hljs for final render
+        // highlight=false → plain escaped text for streaming (partial code breaks hljs)
+        function render(raw, highlight = false) {
             return raw.split(/(```[\s\S]*?```)/g).map((seg, i) => {
                 if (i % 2 === 1) {
-                    // Extract language from fence opener
                     const match = seg.match(/^```(\w*)\n?([\s\S]*?)```$/);
-                    const lang = (match?.[1] || '').toLowerCase();
+                    const langRaw = (match?.[1] || '').toLowerCase();
                     const code = match?.[2] ?? seg.replace(/^```\w*\n?/, '').replace(/\n?```$/, '');
-                    const label = LANG_LABELS[lang] || (lang ? lang.charAt(0).toUpperCase() + lang.slice(1) : 'Code');
+                    const hljsLang = LANG_MAP[langRaw] || (langRaw || null);
+                    const label = LANG_LABELS[hljsLang] || LANG_LABELS[langRaw] ||
+                        (langRaw ? langRaw.charAt(0).toUpperCase() + langRaw.slice(1) : 'Code');
                     const id = 'cb' + (++_codeBlockId);
+
+                    let bodyHtml;
+                    if (highlight && typeof hljs !== 'undefined') {
+                        // Highlighted: wrap in <pre><code class="hljs"> so our token CSS applies
+                        let highlighted;
+                        try {
+                            highlighted = hljsLang && hljs.getLanguage(hljsLang) ?
+                                hljs.highlight(code, {
+                                    language: hljsLang,
+                                    ignoreIllegals: true
+                                }).value :
+                                hljs.highlightAuto(code).value;
+                        } catch {
+                            highlighted = esc(code);
+                        }
+                        bodyHtml = `<pre><code class="hljs">${highlighted}</code></pre>`;
+                    } else {
+                        // Plain — safe during streaming or if hljs not loaded
+                        bodyHtml = `<pre class="plain">${esc(code)}</pre>`;
+                    }
+
                     return `<div class="code-block">
         <div class="code-header">
           <span class="code-lang">${esc(label)}</span>
           <button class="code-copy" onclick="copyCode('${id}',this)" title="Copy code">
-            <i class="bi bi-clipboard"></i> Copy
+            <i class="bi bi-clipboard"></i>Copy
           </button>
         </div>
-        <div class="code-body" id="${id}">${esc(code)}</div>
+        <div class="code-body" id="${id}">${bodyHtml}</div>
       </div>`;
                 }
-                // Plain text segment
                 return esc(seg)
                     .replace(/`([^`\n]+?)`/g, '<code>$1</code>')
                     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -1599,31 +1816,33 @@
             }).join('');
         }
 
-        // Copy handler
+        // Copy handler — extracts plain text regardless of hljs spans
         function copyCode(id, btn) {
-            const el = $(id);
-            if (!el) return;
-            navigator.clipboard.writeText(el.textContent).then(() => {
-                btn.innerHTML = '<i class="bi bi-check-lg"></i> Copied!';
+            const body = $(id);
+            if (!body) return;
+            // Get text from <code> inside <pre> if hljs rendered, else from <pre> directly
+            const codeEl = body.querySelector('code') || body.querySelector('pre') || body;
+            const text = codeEl.textContent ?? '';
+            const finish = () => {
+                btn.innerHTML = '<i class="bi bi-check-lg"></i>Copied!';
                 btn.classList.add('copied');
                 setTimeout(() => {
-                    btn.innerHTML = '<i class="bi bi-clipboard"></i> Copy';
+                    btn.innerHTML = '<i class="bi bi-clipboard"></i>Copy';
                     btn.classList.remove('copied');
                 }, 2000);
-            }).catch(() => {
-                // Fallback for non-HTTPS
+            };
+            navigator.clipboard.writeText(text).then(finish).catch(() => {
                 const ta = document.createElement('textarea');
-                ta.value = el.textContent;
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
                 document.body.appendChild(ta);
                 ta.select();
-                document.execCommand('copy');
+                try {
+                    document.execCommand('copy');
+                } catch {}
                 document.body.removeChild(ta);
-                btn.innerHTML = '<i class="bi bi-check-lg"></i> Copied!';
-                btn.classList.add('copied');
-                setTimeout(() => {
-                    btn.innerHTML = '<i class="bi bi-clipboard"></i> Copy';
-                    btn.classList.remove('copied');
-                }, 2000);
+                finish();
             });
         }
 
@@ -1753,7 +1972,8 @@
                                     gotFirst = true;
                                 }
                                 raw += msg.chunk;
-                                agentBubble.innerHTML = render(raw);
+                                // Plain render while streaming — partial code breaks hljs
+                                agentBubble.innerHTML = render(raw, false);
                                 agentBubble.classList.add('cursor-blink');
                                 scrollEnd();
                             }
@@ -1761,7 +1981,8 @@
                             if (msg.done === true) {
                                 if (agentBubble) {
                                     agentBubble.classList.remove('cursor-blink');
-                                    agentBubble.innerHTML = render(raw);
+                                    // Final render WITH syntax highlighting
+                                    agentBubble.innerHTML = render(raw, true);
                                     stamp(agentWrap);
                                 }
                             }
@@ -1852,7 +2073,7 @@
 
             const bub = document.createElement('div');
             bub.className = 'bub ' + (role === 'user' ? 'bub-user' : 'bub-agent');
-            bub.innerHTML = render(content);
+            bub.innerHTML = render(content, true);
 
             const t = document.createElement('span');
             t.className = 'msg-time';
