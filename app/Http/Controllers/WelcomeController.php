@@ -5,195 +5,266 @@ namespace App\Http\Controllers;
 use Phaseolies\Utilities\Attributes\Route;
 use Phaseolies\Utilities\Attributes\Mapper;
 use Phaseolies\Http\Request;
-use Doppar\AI\AgentFactory\Agent\OpenAI;
-use Doppar\AI\Store\CacheStore;
+
 use Doppar\AI\Agent;
-use App\Http\Controllers\Controller;
+use Doppar\AI\Vector\Vector;
+use Doppar\AI\Store\CacheStore;
+use Doppar\AI\AgentFactory\Agent\OpenAI;
 
 #[Mapper(prefix: 'ai', middleware: ['throttle:60,1'])]
 class WelcomeController extends Controller
 {
-    private string $storeBasePath;
+    private string $vectorFile;
+    private string $storePath;
 
     public function __construct()
     {
-        $this->storeBasePath = storage_path('doppar_ai_conversations');
+        $this->vectorFile = public_path('vector_docs_cache.json');
+        $this->storePath  = storage_path('doppar_ai_conversations');
     }
 
-    private function makeAgent(): Agent
+    /*
+    |--------------------------------------------------------------------------
+    | Load Vector Docs
+    |--------------------------------------------------------------------------
+    */
+
+    private function loadDocs(): array
+    {
+        if (!file_exists($this->vectorFile)) {
+            return [];
+        }
+
+        $docs = json_decode(file_get_contents($this->vectorFile), true);
+
+        return is_array($docs) ? $docs : [];
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Build Agent
+    |--------------------------------------------------------------------------
+    */
+
+    private function buildAgent(string $context): Agent
     {
         return Agent::using(OpenAI::class)
             ->withKey(env('OPENAI_API_KEY'))
             ->model(env('OPENAI_MODEL', 'gpt-4o-mini'))
-            ->withStore(new CacheStore($this->storeBasePath))
-            ->system($this->getSystemPrompt());
+            ->withStore(new CacheStore($this->storePath))
+            ->system(
+                "You are the official AI assistant for the Doppar PHP Framework.
+
+Answer ONLY using the provided documentation context.
+
+If the answer is not present in the documentation, respond exactly with:
+
+\"The documentation does not contain this information.\"
+
+Documentation context:
+
+{$context}"
+            );
     }
 
-    private function conversationKey(string $sessionId): string
+    /*
+    |--------------------------------------------------------------------------
+    | Generate Context (RAG)
+    |--------------------------------------------------------------------------
+    */
+
+    private function generateContext(string $question): array
     {
-        return 'doppar-chat-' . md5($sessionId);
+        $docs = $this->loadDocs();
+
+        if (!$docs) {
+            return [
+                'context' => '',
+                'error' => 'Vector documentation cache not found'
+            ];
+        }
+
+        try {
+
+            $agent = Agent::using(OpenAI::class)
+                ->withKey(env('OPENAI_API_KEY'));
+
+            $vector = Vector::embedding(
+                $agent,
+                env('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small'),
+                $question
+            );
+
+            $context = Vector::getContext($docs, $vector);
+
+            return [
+                'context' => $context,
+                'error' => null
+            ];
+        } catch (\Throwable $e) {
+
+            return [
+                'context' => '',
+                'error' => $e->getMessage()
+            ];
+        }
     }
 
-    #[Route(uri: '/chat', name: 'ai.chat', methods: ['POST'])]
+    /*
+    |--------------------------------------------------------------------------
+    | Conversation Key
+    |--------------------------------------------------------------------------
+    */
+
+    private function conversationKey(string $session): string
+    {
+        return 'doppar-ai-' . md5($session);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Chat Endpoint (Streaming)
+    |--------------------------------------------------------------------------
+    */
+
+    #[Route(uri: '/chat', methods: ['POST'])]
     public function chat(Request $request)
     {
-        $userMessage = trim((string) ($request->message ?? ''));
+        $message = trim((string)$request->message);
 
-        if ($userMessage === '') {
+        if (!$message) {
             return response()->json([
                 'success' => false,
-                'error'   => 'Message cannot be empty.',
+                'error' => 'Message is required'
             ], 422);
         }
 
-        $rateLimitKey = 'ai-chat:' . ($request->ip() ?? 'unknown');
-        if (throttle()->tooManyAttempts($rateLimitKey, 20)) {
-            $wait = throttle()->availableIn($rateLimitKey);
-            return response()->json([
-                'success' => false,
-                'error'   => "Too many requests. Please wait {$wait}s and try again.",
-            ], 429);
-        }
-        throttle()->hit($rateLimitKey, 60);
+        $session = $request->session()->getId() ?? session_id() ?? 'guest';
 
-        $sessionId = $request->session()->getId() ?? session_id() ?: 'guest';
-        $key       = $this->conversationKey($sessionId);
-        $store     = new CacheStore($this->storeBasePath);
-        $agent     = $this->makeAgent();
+        $conversationKey = $this->conversationKey($session);
 
-        if ($store->has($key)) {
-            $agent->loadMessages($key);
+        $store = new CacheStore($this->storePath);
+
+        $rag = $this->generateContext($message);
+
+        $agent = $this->buildAgent($rag['context']);
+
+        if ($store->has($conversationKey)) {
+            $agent->loadMessages($conversationKey);
         }
 
-        return response()->stream(
-            function () use ($agent, $key, $userMessage) {
-                $fullResponse = '';
+        return response()->stream(function () use ($agent, $message, $conversationKey, $rag) {
 
-                try {
-                    $stream = $agent->prompt($userMessage)->stream();
+            $full = '';
 
-                    foreach ($stream as $chunk) {
-                        if ($chunk === null || $chunk === '') {
-                            continue;
-                        }
+            try {
 
-                        $fullResponse .= $chunk;
+                if ($rag['error']) {
 
-                        echo 'data: ' . json_encode(
-                            ['chunk' => $chunk],
-                            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-                        ) . "\n\n";
+                    $warn = "⚠ RAG unavailable: {$rag['error']}\n\n";
 
-                        if (ob_get_level() > 0) {
-                            ob_flush();
-                        }
-                        flush();
+                    echo 'data: ' . json_encode(['chunk' => $warn]) . "\n\n";
+
+                    flush();
+
+                    $full .= $warn;
+                }
+
+                $stream = $agent
+                    ->prompt("Context:\n{$rag['context']}\n\nQuestion: {$message}")
+                    ->stream();
+
+                foreach ($stream as $chunk) {
+
+                    if (!$chunk) {
+                        continue;
                     }
 
-                    $agent->store($key, $fullResponse);
+                    $full .= $chunk;
 
-                    echo 'data: ' . json_encode(['done' => true]) . "\n\n";
-                } catch (\Throwable $e) {
-                    echo 'data: ' . json_encode(['error' => $e->getMessage()]) . "\n\n";
+                    echo 'data: ' . json_encode([
+                        'chunk' => $chunk
+                    ], JSON_UNESCAPED_UNICODE) . "\n\n";
+
+                    if (ob_get_level()) {
+                        ob_flush();
+                    }
+
+                    flush();
                 }
 
-                if (ob_get_level() > 0) {
-                    ob_flush();
-                }
-                flush();
-            },
-            200,
-            [
-                'Content-Type'      => 'text/event-stream; charset=UTF-8',
-                'Cache-Control'     => 'no-cache, no-store, must-revalidate',
-                'X-Accel-Buffering' => 'no',
-                'Connection'        => 'keep-alive',
-            ]
-        );
-    }
+                $agent->store($conversationKey, $full);
 
-    #[Route(uri: 'clear-history', name: 'ai.clear-history', methods: ['POST'])]
-    public function clearHistory(Request $request)
-    {
-        $sessionId = $request->session()->getId() ?? session_id();
+                echo 'data: ' . json_encode(['done' => true]) . "\n\n";
+            } catch (\Throwable $e) {
 
-        if ($sessionId) {
-            $store = new CacheStore($this->storeBasePath);
-            $key   = $this->conversationKey($sessionId);
-            if ($store->has($key)) {
-                $store->delete($key);
+                echo 'data: ' . json_encode([
+                    'error' => $e->getMessage()
+                ]) . "\n\n";
             }
-        }
 
-        return response()->json(['success' => true, 'message' => 'Conversation history cleared.']);
-    }
-
-    #[Route(uri: 'history', name: 'ai.history', methods: ['GET'])]
-    public function history(Request $request)
-    {
-        $sessionId = $request->session()->getId() ?? session_id();
-        $messages  = [];
-
-        if ($sessionId) {
-            $store = new CacheStore($this->storeBasePath);
-            $key   = $this->conversationKey($sessionId);
-            if ($store->has($key)) {
-                $raw      = $store->load($key) ?? [];
-                $messages = array_values(
-                    array_filter($raw, fn($m) => ($m['role'] ?? '') !== 'system')
-                );
-            }
-        }
-
-        return response()->json(['success' => true, 'messages' => $messages]);
-    }
-
-    #[Route(uri: 'status', name: 'ai.status', methods: ['GET'])]
-    public function status()
-    {
-        return response()->json([
-            'success'     => true,
-            'status'      => 'operational',
-            'model'       => env('OPENAI_MODEL', 'gpt-4o-mini'),
-            'streaming'   => true,
-            'persistence' => true,
+            flush();
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'Connection' => 'keep-alive',
+            'X-Accel-Buffering' => 'no'
         ]);
     }
 
-    private function getSystemPrompt(): string
+    /*
+    |--------------------------------------------------------------------------
+    | Get Chat History
+    |--------------------------------------------------------------------------
+    */
+
+    #[Route(uri: 'history', methods: ['GET'])]
+    public function history(Request $request)
     {
-        return <<<'PROMPT'
-You are an expert AI assistant specializing in the Doppar PHP Framework.
+        $session = $request->session()->getId() ?? session_id();
 
-**Core Doppar Framework:**
-- Modern PHP framework created by Mahedi Hasan
-- Built for robust, scalable web applications
-- Features: Middleware support, Repository pattern, Attribute-based routing, Facade support
+        $store = new CacheStore($this->storePath);
 
-**Doppar AI Component (doppar/ai):**
-- Built on Symfony AI and Transformers.php
-- Pipeline: Run 15+ transformer tasks locally (sentiment analysis, text generation, translation, QA, image classification, object detection, ASR, etc.)
-- Agent: Fluent interface for cloud LLMs — OpenAI, Gemini, Claude, OpenRouter, SelfHost
-- Streaming: withStreaming() / stream() methods return a PHP Generator for token-by-token output
-- Agent Persistence: StoreInterface + CacheStore for saving/loading multi-turn conversation history
-- Vector Helper: cosine similarity, context retrieval, embeddings for RAG workflows
-- Rate Limiting: throttle() helper for protecting agent endpoints
-- Quantized models for local performance
+        $key = $this->conversationKey($session);
 
-**HTTP Responses in Doppar:**
-- response()->json(), response()->stream(), response()->streamJson()
-- response()->download(), response()->file(), response()->streamDownload()
-- Redirect helpers: redirect()->route(), redirect()->back(), redirect()->away()
-- Caching: setPublic(), setPrivate(), setMaxAge(), setSharedMaxAge()
-- Status helpers: isOk(), isSuccessful(), isNotFound(), etc.
+        $messages = [];
 
-**Behavior:**
-- Be concise, practical, and precise
-- Always provide working PHP code examples
-- Use Doppar/PHP syntax exclusively in code blocks
-- Admit when you don't know something
-- Keep responses under 500 words unless a detailed walkthrough is needed
-- End every response with a short follow-up question
-PROMPT;
+        if ($store->has($key)) {
+
+            $raw = $store->load($key) ?? [];
+
+            $messages = array_values(
+                array_filter($raw, fn($m) => ($m['role'] ?? '') !== 'system')
+            );
+        }
+
+        return response()->json([
+            'success' => true,
+            'messages' => $messages
+        ]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Clear Chat History
+    |--------------------------------------------------------------------------
+    */
+
+    #[Route(uri: 'clear-history', methods: ['POST'])]
+    public function clearHistory(Request $request)
+    {
+        $session = $request->session()->getId() ?? session_id();
+
+        $store = new CacheStore($this->storePath);
+
+        $key = $this->conversationKey($session);
+
+        if ($store->has($key)) {
+            $store->delete($key);
+        }
+
+        return response()->json([
+            'success' => true
+        ]);
     }
 }
