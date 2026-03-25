@@ -141,8 +141,7 @@
         function toggleSB() {
             const isNowCollapsed = $('sidebar').classList.toggle('collapsed');
             $('sbToggleIcon').className = isNowCollapsed ?
-                'bi bi-layout-sidebar'
-                :
+                'bi bi-layout-sidebar' :
                 'bi bi-layout-sidebar-reverse';
         }
 
@@ -234,25 +233,35 @@
             renderSB();
             setTopTitle(chat.title);
             $('msgInner').innerHTML = '';
-            goChat();
+            _codeBlockId = 0; // Reset code block ID counter to prevent conflicts
+
             try {
-                const r = await fetch('/ai/history');
+                const r = await fetch(`/ai/history?chat_id=${encodeURIComponent(id)}`);
                 const d = await r.json();
                 if (d.success && d.messages?.length) {
                     d.messages.filter(m => m.role !== 'system')
                         .forEach(m => addBubble(m.content, m.role === 'user' ? 'user' : 'agent'));
                     addSysMsg('Conversation restored');
+                } else {
+                    addSysMsg('No previous messages found');
                 }
-            } catch {}
+            } catch (error) {
+                console.error('Error loading chat:', error);
+                addSysMsg('Error loading conversation');
+            }
+
+            // Show chat view after loading messages
+            goChat();
         }
 
         async function deleteChat(id) {
             chatHistory = chatHistory.filter(c => c.id !== id);
             saveHistory();
             if (activeChatId === id) {
-                await clearHistoryQuiet();
+                await clearHistoryQuiet(id);
                 activeChatId = null;
                 $('msgInner').innerHTML = '';
+                _codeBlockId = 0; // Reset code block ID counter to prevent conflicts
                 goHome();
                 setTopTitle(null);
             }
@@ -277,6 +286,7 @@
             await clearHistoryQuiet();
             activeChatId = null;
             $('msgInner').innerHTML = '';
+            _codeBlockId = 0; // Reset code block ID counter to prevent conflicts
             goHome();
             setTopTitle(null);
             renderSB();
@@ -284,7 +294,7 @@
         }
 
         function setTopTitle(_title) {
-           
+
         }
 
         const SUGG = {
@@ -371,9 +381,9 @@
 
         async function newChat() {
             if (streaming) return;
-            await clearHistoryQuiet();
             activeChatId = null;
             $('msgInner').innerHTML = '';
+            _codeBlockId = 0; // Reset code block ID counter to prevent conflicts
             setTopTitle(null);
             renderSB();
             goHome();
@@ -576,7 +586,8 @@
                         'X-CSRF-TOKEN': csrf()
                     },
                     body: JSON.stringify({
-                        message: text
+                        message: text,
+                        chat_id: activeChatId
                     }),
                 });
 
@@ -683,10 +694,11 @@
             if (!isConfirmed) return;
             await clearHistoryQuiet();
             $('msgInner').innerHTML = '';
+            _codeBlockId = 0; // Reset code block ID counter to prevent conflicts
             addSysMsg('Conversation cleared');
         }
 
-        async function clearHistoryQuiet() {
+        async function clearHistoryQuiet(chatId = null) {
             try {
                 await fetch('/ai/clear-history', {
                     method: 'POST',
@@ -694,7 +706,9 @@
                         'X-CSRF-TOKEN': csrf(),
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({}),
+                    body: JSON.stringify({
+                        chat_id: chatId || activeChatId
+                    }),
                 });
             } catch {}
         }
@@ -704,24 +718,8 @@
             renderSB();
             renderSugg('framework');
 
-            try {
-                const r = await fetch('/ai/history');
-                const d = await r.json();
-                if (d.success && d.messages?.length) {
-                    const msgs = d.messages.filter(m => m.role !== 'system');
-                    if (msgs.length) {
-                        if (chatHistory.length) {
-                            activeChatId = chatHistory[0].id;
-                            setTopTitle(chatHistory[0].title);
-                            renderSB();
-                        }
-                        goChat();
-                        msgs.forEach(m => addBubble(m.content, m.role === 'user' ? 'user' : 'agent'));
-                        addSysMsg('Previous conversation restored');
-                        return;
-                    }
-                }
-            } catch {}
+            // Don't automatically load chat history on boot since we support multiple chats
+            // User should click on a chat to load it
         }
 
         function addBubble(content, role) {
